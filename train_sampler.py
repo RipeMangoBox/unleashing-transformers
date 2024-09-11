@@ -290,3 +290,4 @@ if __name__ == '__main__':
     log(f'Setting up training for {H.sampler}')
     start_training_log(H)
     main(H, vis)
+# python3 train_sampler.py --sampler absorbing --dataset ffhq --log_dir absorbing_ffhq --ae_load_path vqgan_ffhq --amp --ema

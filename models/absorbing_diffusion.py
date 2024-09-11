@@ -56,7 +56,14 @@ class AbsorbingDiffusion(Sampler):
         # randomly set token to mask with probability t/T
         x_t, x_0_ignore = x_0.clone(), x_0.clone()
 
-        mask = torch.rand_like(x_t.float()) < (t.float().unsqueeze(-1) / self.num_timesteps)
+        # original 
+        # mask = torch.rand_like(x_t.float()) < (t.float().unsqueeze(-1) / self.num_timesteps)
+        
+        pkeep = t.float().unsqueeze(-1) / self.num_timesteps
+        mask = torch.bernoulli(pkeep * torch.ones(x_0.shape, device=x_0.device))
+        mask = mask.round().to(dtype=torch.int64)
+        # r_indices = torch.randint_like(z_indices, self.transformer.config.vocab_size)
+        
         x_t[mask] = self.mask_id
         x_0_ignore[torch.bitwise_not(mask)] = -1
         return x_t, x_0_ignore, mask

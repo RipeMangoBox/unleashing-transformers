@@ -106,9 +106,9 @@ def get_latent_loaders(H, get_validation_loader=True, shuffle=True):
 def retrieve_autoencoder_components_state_dicts(H, components_list, remove_component_from_key=False):
     state_dict = {}
     # default to loading ema models first
-    ae_load_path = f"logs/{H.ae_load_dir}/saved_models/vqgan_ema_{H.ae_load_step}.th"
-    if not os.path.exists(ae_load_path):
-        ae_load_path = f"logs/{H.ae_load_dir}/saved_models/vqgan_{H.ae_load_step}.th"
+    ae_load_path = f"{H.ae_load_path}"
+    assert os.path.exists(ae_load_path)
+
     log(f"Loading VQGAN from {ae_load_path}")
     full_vqgan_state_dict = torch.load(ae_load_path, map_location="cpu")
 

@@ -14,7 +14,7 @@ dependencies:
   - ncurses=6.3=h7f8727e_2
   - openssl=1.1.1l=h7f8727e_0
   - pip=21.2.4=py38h06a4308_0
-  - python=3.8.5=h7579374_1
+  # - python=3.8.5=h7579374_1
   - readline=8.1=h27cfd23_0
   - setuptools=58.0.4=py38h06a4308_0
   - sqlite=3.36.0=hc218d9a_0
@@ -23,7 +23,7 @@ dependencies:
   - xz=5.2.5=h7b6447c_0
   - zlib=1.2.11=h7b6447c_3
   - pip:
-    - --find-links https://download.pytorch.org/whl/torch_stable.html 
+    # - --find-links https://download.pytorch.org/whl/torch_stable.html 
     - charset-normalizer==2.0.7
     - idna==3.3
     - imageio==2.9.0
@@ -45,5 +45,5 @@ dependencies:
     - urllib3==1.26.7
     - visdom==0.1.8.9
     - websocket-client==1.2.1
-    - torch==1.7.1+cu110
-    - torchvision==0.8.2+cu110
+    # - torch==1.7.1+cu110
+    # - torchvision==0.8.2+cu110

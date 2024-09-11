@@ -6,12 +6,12 @@ from .defaults.experiment_defaults import add_PRDC_args, add_sampler_FID_args, a
 
 # args for training of all models: dataset, EMA and loading
 def add_training_args(parser):
-    parser.add_argument("--amp", const=True, action="store_const", default=False)
+    parser.add_argument("--amp", const=True, action="store_const", default=True)
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--custom_dataset_path", type=str)
-    parser.add_argument("--dataset", type=str, required=True)
+    parser.add_argument("--dataset", type=str, default='ffhq')
     parser.add_argument("--ema_beta", type=float, default=0.995)
-    parser.add_argument("--ema", const=True, action="store_const", default=False)
+    parser.add_argument("--ema", const=True, action="store_const", default=True)
     parser.add_argument("--load_dir", type=str, default="test")
     parser.add_argument("--load_optim", const=True, action="store_const", default=False)
     parser.add_argument("--load_step", type=int, default=0)
@@ -22,7 +22,7 @@ def add_training_args(parser):
 
 # args required for logging
 def add_logging_args(parser):
-    parser.add_argument("--log_dir", type=str, default="test")
+    parser.add_argument("--log_dir", type=str, default="absorbing_ffhq_bernolli_mask")
     parser.add_argument("--save_individually", const=True, action="store_const", default=False)
     parser.add_argument("--steps_per_checkpoint", type=int, default=25000)
     parser.add_argument("--steps_per_display_output", type=int, default=5000)
