@@ -21,6 +21,7 @@ class AbsorbingDiffusion(Sampler):
         self.n_samples = H.batch_size
         self.loss_type = H.loss_type
         self.mask_schedule = H.mask_schedule
+        self.mask_type = 'linear' if H.log_dir == 'absorbing_ffhq_linear_mask' else 'bernoulli'
         self.aux_weight = aux_weight
         self.register_buffer('Lt_history', torch.zeros(self.num_timesteps+1))
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps+1))
@@ -57,15 +58,14 @@ class AbsorbingDiffusion(Sampler):
         x_t, x_0_ignore = x_0.clone(), x_0.clone()
 
         # original, linear mask
-        # mask = torch.rand_like(x_t.float()) < (t.float().unsqueeze(-1) / self.num_timesteps)
-        
-        # bernoulli mask
-        pkeep = t.float().unsqueeze(-1) / self.num_timesteps
-        mask = torch.bernoulli(pkeep * torch.ones(x_0.shape, device=x_0.device))
-        mask = mask.round().to(dtype=torch.int64)
-        # r_indices = torch.randint_like(z_indices, self.transformer.config.vocab_size)
-        
-        # 
+        if self.mask_type == 'linear':
+            mask = torch.rand_like(x_t.float()) < (t.float().unsqueeze(-1) / self.num_timesteps)
+        else:
+            # bernoulli mask
+            pkeep = t.float().unsqueeze(-1) / self.num_timesteps
+            mask = torch.bernoulli(pkeep * torch.zeros(x_0.shape, device=x_0.device))
+            mask = mask.round().to(dtype=torch.int64)
+            # r_indices = torch.randint_like(z_indices, self.transformer.config.vocab_size)
         
         x_t[mask] = self.mask_id
         x_0_ignore[torch.bitwise_not(mask)] = -1
@@ -142,7 +142,10 @@ class AbsorbingDiffusion(Sampler):
         return loss.mean(), vb_loss.mean()
 
     def sample(self, temp=1.0, sample_steps=None):
-        b, device = self.n_samples, 'cuda'
+        b = self.n_samples
+        device_example = torch.tensor([0]).cuda(1) # for device change convience
+        device = device_example.device
+        
         x_t = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id
         unmasked = torch.zeros_like(x_t, device=device).bool()
         sample_steps = list(range(1, sample_steps+1))

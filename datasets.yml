@@ -3,4 +3,4 @@
 - dataset: bedrooms
   path: "/datasets/lsun"
 - dataset: ffhq
-  path: "/home/ripemangobox/Coding/Github/Research/unleashing-transformers/datasets/FFHQ"
+  path: "//sata/public/ripemangobox/ModulesLearning/unleashing-transformers/datasets/FFHQ"

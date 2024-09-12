@@ -117,7 +117,7 @@ def set_up_visdom(H):
     server = H.visdom_server
     try:
         if server:
-            vis = visdom.Visdom(server=server, port=H.visdom_port)
+            vis = visdom.Visdom(server=server, port=H.visdom_port, env=H.log_dir)
         else:
             vis = visdom.Visdom(port=H.visdom_port)
         return vis

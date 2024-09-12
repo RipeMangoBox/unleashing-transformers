@@ -22,7 +22,7 @@ def add_training_args(parser):
 
 # args required for logging
 def add_logging_args(parser):
-    parser.add_argument("--log_dir", type=str, default="absorbing_ffhq_bernolli_mask")
+    parser.add_argument("--log_dir", type=str, default="absorbing_ffhq_linear_mask")
     parser.add_argument("--save_individually", const=True, action="store_const", default=False)
     parser.add_argument("--steps_per_checkpoint", type=int, default=25000)
     parser.add_argument("--steps_per_display_output", type=int, default=5000)

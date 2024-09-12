@@ -16,13 +16,13 @@ def main(H, vis):
         remove_component_from_key=True
     )
     embedding_weight = quanitzer_and_generator_state_dict.pop('embedding.weight')
-    embedding_weight = embedding_weight.cuda()
+    embedding_weight = embedding_weight.cuda(1)
     generator = Generator(H)
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
-    generator = generator.cuda()
+    generator = generator.cuda(1)
 
     model = get_sampler(H, embedding_weight)
-    model = load_model(model, H.sampler + '_ema', H.load_step, H.load_dir).cuda()
+    model = load_model(model, H.sampler + '_ema', H.load_step, H.load_dir).cuda(1)
     model = model.eval()
 
     shape = (1, H.shape[0], H.shape[1])
@@ -32,7 +32,7 @@ def main(H, vis):
 
     with torch.no_grad():
         latents = model.sample_shape(shape[1:], H.batch_size, time_steps=time_steps, step=step)
-        latents_one_hot = latent_ids_to_onehot(latents, shape, H.codebook_size).cuda()
+        latents_one_hot = latent_ids_to_onehot(latents, shape, H.codebook_size).cuda(1)
 
         q = torch.matmul(latents_one_hot, embedding_weight).view(
             latents_one_hot.size(0), shape[1], shape[2], H.emb_dim

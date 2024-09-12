@@ -17,7 +17,7 @@ torch.backends.cudnn.benchmark = True
 
 
 def main(H, vis):
-    vqgan = VQGAN(H).cuda()
+    vqgan = VQGAN(H).cuda(1)
     # only load val_loader if running eval
     train_loader, val_loader = get_data_loaders(
 
@@ -105,7 +105,7 @@ def main(H, vis):
             if random.random() <= 0.5:
                 x = hflip(x)
 
-        x = x.cuda()
+        x = x.cuda(1)
 
         if H.amp:
             optim.zero_grad()
