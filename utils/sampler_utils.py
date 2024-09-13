@@ -8,7 +8,7 @@ from models import Transformer, AbsorbingDiffusion, AutoregressiveTransformer
 def get_sampler(H, embedding_weight):
 
     if H.sampler == 'absorbing':
-        denoise_fn = Transformer(H).cuda(1)
+        denoise_fn = Transformer(H).cuda(0)
         sampler = AbsorbingDiffusion(
             H, denoise_fn, H.codebook_size, embedding_weight)
 
@@ -67,7 +67,7 @@ def generate_latent_ids(H, ae, train_loader, val_loader=None):
 def generate_latents_from_loader(H, autoencoder, dataloader):
     latent_ids = []
     for x, _ in tqdm(dataloader):
-        x = x.cuda(1)
+        x = x.cuda(0)
         latents = autoencoder.encoder(x)  # B, emb_dim, H, W
 
         latents = latents.permute(0, 2, 3, 1).contiguous()  # B, H, W, emb_dim

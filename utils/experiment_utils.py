@@ -9,11 +9,11 @@ import os
 
 @torch.no_grad()
 def generate_images_from_latents(H, all_latents, embedding_weight, generator):
-    all_latents = all_latents.cuda(1)
-    generator = generator.cuda(1)
+    all_latents = all_latents.cuda(0)
+    generator = generator.cuda(0)
 
     for idx, latents in tqdm(list(enumerate(torch.split(all_latents, H.batch_size)))):
-        latents_one_hot = latent_ids_to_onehot(latents, H.latent_shape, H.codebook_size).cuda(1)
+        latents_one_hot = latent_ids_to_onehot(latents, H.latent_shape, H.codebook_size).cuda(0)
         q = torch.matmul(latents_one_hot, embedding_weight).view(
             latents_one_hot.size(0), H.latent_shape[1], H.latent_shape[2], H.emb_dim
         ).permute(0, 3, 1, 2).contiguous()
@@ -57,7 +57,7 @@ def get_generator_and_embedding_weight(H):
         remove_component_from_key=True
     )
     embedding_weight = quanitzer_and_generator_state_dict.pop("embedding.weight")
-    embedding_weight = embedding_weight.cuda(1)
+    embedding_weight = embedding_weight.cuda(0)
     generator = Generator(H)
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
     return generator, embedding_weight
@@ -70,14 +70,14 @@ def get_sampler_and_generator(H):
         remove_component_from_key=True
     )
     embedding_weight = quanitzer_and_generator_state_dict.pop("embedding.weight")
-    embedding_weight = embedding_weight.cuda(1)
-    sampler = get_sampler(H, embedding_weight).cuda(1)
+    embedding_weight = embedding_weight.cuda(0)
+    sampler = get_sampler(H, embedding_weight).cuda(0)
 
     generator = Generator(H)
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
 
     if H.load_step > 0:
-        sampler = load_model(sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(1)
+        sampler = load_model(sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(0)
 
     sampler = sampler.eval()
     return sampler, generator
@@ -86,14 +86,14 @@ def get_sampler_and_generator(H):
 @torch.no_grad()
 def generate_samples(H):
     generator, embedding_weight = get_generator_and_embedding_weight(H)
-    sampler = get_sampler(H, embedding_weight).cuda(1)
+    sampler = get_sampler(H, embedding_weight).cuda(0)
     if H.load_step > 0:
-        sampler = load_model(sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(1)
+        sampler = load_model(sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(0)
     else:
         raise ValueError("No load step provided, cannot load sampler")
     sampler = sampler.eval()
     all_latents = generate_latents(H, sampler)
-    embedding_weight = sampler.embedding_weight.cuda(1).clone()
+    embedding_weight = sampler.embedding_weight.cuda(0).clone()
     del sampler
 
     generate_images_from_latents(H, all_latents, embedding_weight, generator)

@@ -21,7 +21,7 @@ class AbsorbingDiffusion(Sampler):
         self.n_samples = H.batch_size
         self.loss_type = H.loss_type
         self.mask_schedule = H.mask_schedule
-        self.mask_type = 'linear' if H.log_dir == 'absorbing_ffhq_linear_mask' else 'bernoulli'
+        self.mask_type = 'linear' if 'linear' in H.log_dir else 'bernoulli'
         self.aux_weight = aux_weight
         self.register_buffer('Lt_history', torch.zeros(self.num_timesteps+1))
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps+1))
@@ -38,7 +38,7 @@ class AbsorbingDiffusion(Sampler):
             Lt_sqrt[0] = Lt_sqrt[1]  # Overwrite decoder term with L1.
             pt_all = Lt_sqrt / Lt_sqrt.sum()
 
-            t = torch.multinomial(pt_all, num_samples=b, replacement=True)
+            t = torch.multinomial(pt_all, num_samples=b, replacement=True) # importance sampling, pt_all is possibility that each position is sampled, and param 'repalcement = True' means 有放回采样
 
             pt = pt_all.gather(dim=0, index=t)
 
@@ -68,7 +68,7 @@ class AbsorbingDiffusion(Sampler):
             # r_indices = torch.randint_like(z_indices, self.transformer.config.vocab_size)
         
         x_t[mask] = self.mask_id
-        x_0_ignore[torch.bitwise_not(mask)] = -1
+        x_0_ignore[torch.bitwise_not(mask)] = -1 # mask为false的地方，x_0_ignore对应值为-1；mask为true的地方为x_0的值
         return x_t, x_0_ignore, mask
 
     def q_sample_mlm(self, x_0, t):
@@ -143,11 +143,11 @@ class AbsorbingDiffusion(Sampler):
 
     def sample(self, temp=1.0, sample_steps=None):
         b = self.n_samples
-        device_example = torch.tensor([0]).cuda(1) # for device change convience
+        device_example = torch.tensor([0]).cuda(0) # for device change convience
         device = device_example.device
         
         x_t = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id
-        unmasked = torch.zeros_like(x_t, device=device).bool()
+        unmasked = torch.zeros_like(x_t, device=device).bool() # 已解除mask的位置
         sample_steps = list(range(1, sample_steps+1))
 
         for t in reversed(sample_steps):
@@ -157,9 +157,9 @@ class AbsorbingDiffusion(Sampler):
             # where to unmask
             changes = torch.rand(x_t.shape, device=device) < 1/t.float().unsqueeze(-1)
             # don't unmask somewhere already unmasked
-            changes = torch.bitwise_xor(changes, torch.bitwise_and(changes, unmasked))
+            changes = torch.bitwise_xor(changes, torch.bitwise_and(changes, unmasked)) # 需要解除mask的位置，排除掉需要解除但已经解除的位置（防止反复解除mask）
             # update mask with changes
-            unmasked = torch.bitwise_or(unmasked, changes)
+            unmasked = torch.bitwise_or(unmasked, changes) # 对需要解除且还未解除的位置进行解除mask
 
             x_0_logits = self._denoise_fn(x_t, t=t)
             # scale by temperature

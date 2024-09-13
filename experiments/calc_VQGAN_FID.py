@@ -8,7 +8,7 @@ from utils.log_utils import load_model
 
 
 def main(H):
-    vqgan = VQGAN(H).cuda(1)
+    vqgan = VQGAN(H).cuda(0)
     try:
         vqgan = load_model(vqgan, "vqgan_ema", H.load_step, H.load_dir)
 
