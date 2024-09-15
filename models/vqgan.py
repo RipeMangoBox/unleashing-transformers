@@ -376,13 +376,13 @@ class VQAutoEncoder(nn.Module):
 
 # patch based discriminator
 class Discriminator(nn.Module):
-    def __init__(self, nc, ndf, n_layers=3):
+    def __init__(self, nc, ndf, n_layer=3):
         super().__init__()
 
         layers = [nn.Conv2d(nc, ndf, kernel_size=4, stride=2, padding=1), nn.LeakyReLU(0.2, True)]
         ndf_mult = 1
         ndf_mult_prev = 1
-        for n in range(1, n_layers):  # gradually increase the number of filters
+        for n in range(1, n_layer):  # gradually increase the number of filters
             ndf_mult_prev = ndf_mult
             ndf_mult = min(2 ** n, 8)
             layers += [
@@ -392,7 +392,7 @@ class Discriminator(nn.Module):
             ]
 
         ndf_mult_prev = ndf_mult
-        ndf_mult = min(2 ** n_layers, 8)
+        ndf_mult = min(2 ** n_layer, 8)
 
         layers += [
             nn.Conv2d(ndf * ndf_mult_prev, ndf * ndf_mult, kernel_size=4, stride=1, padding=1, bias=False),
@@ -415,7 +415,7 @@ class VQGAN(nn.Module):
         self.disc = Discriminator(
             H.n_channels,
             H.ndf,
-            n_layers=H.disc_layers
+            n_layer=H.disc_layers
         )
         self.perceptual = lpips.LPIPS(net="vgg")
         self.perceptual_weight = H.perceptual_weight

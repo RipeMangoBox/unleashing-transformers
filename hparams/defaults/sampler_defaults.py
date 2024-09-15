@@ -17,18 +17,18 @@ class HparamsAbsorbing(HparamsBase):
         super().__init__(dataset)
         if self.dataset == "churches" or self.dataset == "bedrooms":
             self.batch_size = 20
-            self.bert_n_emb = 512
-            self.bert_n_head = 8
-            self.bert_n_layers = 24
+            self.n_embd = 512
+            self.n_head = 8
+            self.n_layer = 24
             self.block_size = 256
             self.lr = 2e-4
             self.warmup_iters = 10000
 
         elif self.dataset == "ffhq":
             self.batch_size = 20
-            self.bert_n_emb = 512
-            self.bert_n_head = 8
-            self.bert_n_layers = 24
+            self.n_embd = 512
+            self.n_head = 8
+            self.n_layer = 24
             self.block_size = 256
             self.lr = 1e-4
             self.warmup_iters = 30000
@@ -48,18 +48,18 @@ class HparamsAutoregressive(HparamsBase):
 
         if self.dataset == "churches" or "bedrooms":
             self.batch_size = 20
-            self.bert_n_emb = 512
-            self.bert_n_head = 8
-            self.bert_n_layers = 24
+            self.n_embd = 512
+            self.n_head = 8
+            self.n_layer = 24
             self.block_size = 256
             self.lr = 2e-4
             self.warmup_iters = 10000
 
         elif self.dataset == "ffhq":
             self.batch_size = 20
-            self.bert_n_emb = 512
-            self.bert_n_head = 8
-            self.bert_n_layers = 24
+            self.n_embd = 512
+            self.n_head = 8
+            self.n_layer = 24
             self.block_size = 256
             self.lr = 1e-4
             self.warmup_iters = 30000
@@ -72,9 +72,9 @@ def add_sampler_args(parser):
     parser.add_argument("--ae_load_path", type=str, default='checkpoints/vqgan_ffhq/vqgan_1400000.th')
     # parser.add_argument("--ae_load_step", type=int, default=1400000)
     parser.add_argument("--attn_pdrop", type=float)
-    parser.add_argument("--bert_n_emb", type=int)
-    parser.add_argument("--bert_n_head", type=int)
-    parser.add_argument("--bert_n_layers", type=int)
+    parser.add_argument("--n_embd", type=int)
+    parser.add_argument("--n_head", type=int)
+    parser.add_argument("--n_layer", type=int)
     parser.add_argument("--block_size", type=int)
     parser.add_argument("--embd_pdrop", type=float)
     parser.add_argument("--greedy_epochs", type=int)
@@ -85,7 +85,7 @@ def add_sampler_args(parser):
     parser.add_argument("--sample_block_size", type=int)
     parser.add_argument("--sample_type", type=str, choices=["diffusion", "mlm"])
     # parser.add_argument("--sampler", type=str, required=True, choices=["absorbing", "autoregressive"])
-    parser.add_argument("--sampler", type=str, default='absorbing')
+    parser.add_argument("--sampler", type=str, default='autoregressive')
     parser.add_argument("--total_steps", type=int)
     parser.add_argument("--sample_steps", type=int)
     parser.add_argument("--temp", type=float)

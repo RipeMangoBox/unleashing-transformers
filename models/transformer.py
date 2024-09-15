@@ -14,17 +14,17 @@ class CausalSelfAttention(nn.Module):
 
     def __init__(self, H):
         super().__init__()
-        assert H.bert_n_emb % H.bert_n_head == 0
+        assert H.n_embd % H.n_head == 0
         # key, query, value projections for all heads
-        self.key = nn.Linear(H.bert_n_emb, H.bert_n_emb)
-        self.query = nn.Linear(H.bert_n_emb, H.bert_n_emb)
-        self.value = nn.Linear(H.bert_n_emb, H.bert_n_emb)
+        self.key = nn.Linear(H.n_embd, H.n_embd)
+        self.query = nn.Linear(H.n_embd, H.n_embd)
+        self.value = nn.Linear(H.n_embd, H.n_embd)
         # regularization
         self.attn_drop = nn.Dropout(H.attn_pdrop)
         self.resid_drop = nn.Dropout(H.resid_pdrop)
         # output projection
-        self.proj = nn.Linear(H.bert_n_emb, H.bert_n_emb)
-        self.n_head = H.bert_n_head
+        self.proj = nn.Linear(H.n_embd, H.n_embd)
+        self.n_head = H.n_head
         self.causal = True if H.sampler == 'autoregressive' else False
         if self.causal:
             block_size = np.prod(H.latent_shape)
@@ -67,13 +67,13 @@ class Block(nn.Module):
 
     def __init__(self, H):
         super().__init__()
-        self.ln1 = nn.LayerNorm(H.bert_n_emb)
-        self.ln2 = nn.LayerNorm(H.bert_n_emb)
+        self.ln1 = nn.LayerNorm(H.n_embd)
+        self.ln2 = nn.LayerNorm(H.n_embd)
         self.attn = CausalSelfAttention(H)
         self.mlp = nn.Sequential(
-            nn.Linear(H.bert_n_emb, 4 * H.bert_n_emb),
+            nn.Linear(H.n_embd, 4 * H.n_embd),
             nn.GELU(),  # nice
-            nn.Linear(4 * H.bert_n_emb, H.bert_n_emb),
+            nn.Linear(4 * H.n_embd, H.n_embd),
             nn.Dropout(H.resid_pdrop),
         )
 
@@ -95,9 +95,9 @@ class Transformer(nn.Module):
         super().__init__()
 
         self.vocab_size = H.codebook_size + 1
-        self.n_embd = H.bert_n_emb
+        self.n_embd = H.n_embd
         self.block_size = H.block_size
-        self.n_layers = H.bert_n_layers
+        self.n_layer = H.n_layer
         self.codebook_size = H.codebook_size
         self.causal = H.sampler == 'autoregressive'
         if self.causal:
@@ -110,7 +110,7 @@ class Transformer(nn.Module):
         self.drop = nn.Dropout(H.embd_pdrop)
 
         # transformer
-        self.blocks = nn.Sequential(*[Block(H) for _ in range(self.n_layers)])
+        self.blocks = nn.Sequential(*[Block(H) for _ in range(self.n_layer)])
         # decoder head
         self.ln_f = nn.LayerNorm(self.n_embd)
         self.head = nn.Linear(self.n_embd, self.codebook_size, bias=False)
