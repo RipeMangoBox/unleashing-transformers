@@ -79,12 +79,12 @@ class Block(nn.Module):
 
     def forward(self, x, layer_past=None, return_present=False):
 
-        attn, present = self.attn(self.ln1(x), layer_past)
-        x = x + attn
+        # attn, present = self.attn(self.ln1(x), layer_past)
+        # x = x + attn
         x = x + self.mlp(self.ln2(x))
 
-        if layer_past is not None or return_present:
-            return x, present
+        # if layer_past is not None or return_present:
+            # return x, present
         return x
 
 
@@ -114,7 +114,8 @@ class Transformer(nn.Module):
         # decoder head
         self.ln_f = nn.LayerNorm(self.n_embd)
         self.head = nn.Linear(self.n_embd, self.codebook_size, bias=False)
-
+        self.diffusion_projection = nn.Linear(H.emb_dim, self.n_embd)
+        
     def get_block_size(self):
         return self.block_size
 
@@ -127,9 +128,11 @@ class Transformer(nn.Module):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
-    def forward(self, idx, t=None):
+    def forward(self, idx, time_embeddings=None):
         # each index maps to a (learnable) vector
         token_embeddings = self.tok_emb(idx)
+        
+        time_embeddings = self.diffusion_projection(time_embeddings)
 
         if self.causal:
             token_embeddings = torch.cat(
@@ -142,7 +145,9 @@ class Transformer(nn.Module):
         # each position maps to a (learnable) vector
 
         position_embeddings = self.pos_emb[:, :t, :]
-
+    
+        if time_embeddings is not None:
+            token_embeddings += time_embeddings.unsqueeze(1)
         x = token_embeddings + position_embeddings
         x = self.drop(x)
         for block in self.blocks:

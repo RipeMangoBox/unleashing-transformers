@@ -5,7 +5,7 @@ import torch.distributions as dists
 import torch.nn.functional as F
 from tqdm import tqdm
 from .sampler import Sampler
-
+import torch.nn as nn
 
 class AbsorbingDiffusion(Sampler):
     def __init__(self, H, denoise_fn, mask_id, embedding_weight, aux_weight=0.01):
@@ -27,6 +27,8 @@ class AbsorbingDiffusion(Sampler):
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps+1))
         self.register_buffer('loss_history', torch.zeros(self.num_timesteps+1))
 
+        self.time_emb = TimeEmbedding(self.num_timesteps, 128, self.latent_emb_dim)
+        
         assert self.mask_schedule in ['random', 'fixed']
 
     def sample_time(self, b, device, method='uniform'):
@@ -105,8 +107,10 @@ class AbsorbingDiffusion(Sampler):
         elif self.mask_schedule == 'fixed':
             x_t, x_0_ignore, mask = self.q_sample_mlm(x_0=x_0, t=t)
 
+        time_embeddings = self.time_emb(t)
+        
         # sample p(x_0 | x_t)
-        x_0_hat_logits = self._denoise_fn(x_t, t=t).permute(0, 2, 1) # x_0_hat_logits为小数
+        x_0_hat_logits = self._denoise_fn(x_t, time_embeddings=time_embeddings).permute(0, 2, 1) # x_0_hat_logits为小数
 
         # Always compute ELBO for comparison purposes
         cross_entropy_loss = F.cross_entropy(x_0_hat_logits, x_0_ignore, ignore_index=-1, reduction='none').sum(1)
@@ -273,3 +277,38 @@ class AbsorbingDiffusion(Sampler):
             x_t[changes] = x_0_hat[changes]
 
         return x_t
+
+
+class TimeEmbedding(nn.Module):
+    def __init__(self, max_steps, in_channels, hidden_channels):
+        super().__init__()
+    
+        self.in_channels = in_channels
+        self.register_buffer('embedding', self._build_embedding(max_steps + 1), persistent=False)
+        self.time_embed = nn.Sequential(
+            nn.Linear(in_channels, hidden_channels),
+            nn.SiLU(),
+            nn.Linear(hidden_channels, hidden_channels),
+        )
+
+    def forward(self, diffusion_step):
+        if diffusion_step.dtype in [torch.int32, torch.int64]:
+            x = self.embedding[diffusion_step]
+        else:
+            x = self._lerp_embedding(diffusion_step)
+
+        return self.time_embed(x)
+
+    def _lerp_embedding(self, t):
+        low_idx = torch.floor(t).long()
+        high_idx = torch.ceil(t).long()
+        low = self.embedding[low_idx]
+        high = self.embedding[high_idx]
+        return low + (high - low) * (t - low_idx)
+
+    def _build_embedding(self, max_steps):
+        steps = torch.arange(max_steps).unsqueeze(1)  # [T,1]
+        dims = torch.arange(64).unsqueeze(0)          # [1,64]
+        table = steps * 10.0**(dims * 4.0 / 63.0)     # [T,64]
+        table = torch.cat([torch.sin(table), torch.cos(table)], dim=1)
+        return table
