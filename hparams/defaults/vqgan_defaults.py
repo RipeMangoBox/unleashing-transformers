@@ -37,7 +37,7 @@ class HparamsVQGAN(HparamsBase):
             self.disc_layers = 3
             self.disc_weight_max = 1
             self.disc_start_step = 30001
-            self.emb_dim = 256
+            self.emb_dim = 256 # 256
             self.img_size = 256
             self.latent_shape = [1, 16, 16]
             self.n_channels = 3

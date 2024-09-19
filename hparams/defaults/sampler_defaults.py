@@ -69,6 +69,7 @@ class HparamsAutoregressive(HparamsBase):
 
 # arguments for all sampler models
 def add_sampler_args(parser):
+    # parser.add_argument("--ae_load_path", type=str, default='logs/absorbing_ffhq_linear_mask_debug/saved_models/vqgan_300.th')
     parser.add_argument("--ae_load_path", type=str, default='checkpoints/vqgan_ffhq/vqgan_1400000.th')
     # parser.add_argument("--ae_load_step", type=int, default=1400000)
     parser.add_argument("--attn_pdrop", type=float)
@@ -85,7 +86,7 @@ def add_sampler_args(parser):
     parser.add_argument("--sample_block_size", type=int)
     parser.add_argument("--sample_type", type=str, choices=["diffusion", "mlm"])
     # parser.add_argument("--sampler", type=str, required=True, choices=["absorbing", "autoregressive"])
-    parser.add_argument("--sampler", type=str, default='autoregressive')
+    parser.add_argument("--sampler", type=str, default='absorbing')
     parser.add_argument("--total_steps", type=int)
     parser.add_argument("--sample_steps", type=int)
     parser.add_argument("--temp", type=float)

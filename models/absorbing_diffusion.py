@@ -106,7 +106,7 @@ class AbsorbingDiffusion(Sampler):
             x_t, x_0_ignore, mask = self.q_sample_mlm(x_0=x_0, t=t)
 
         # sample p(x_0 | x_t)
-        x_0_hat_logits = self._denoise_fn(x_t, t=t).permute(0, 2, 1)
+        x_0_hat_logits = self._denoise_fn(x_t, t=t).permute(0, 2, 1) # x_0_hat_logits为小数
 
         # Always compute ELBO for comparison purposes
         cross_entropy_loss = F.cross_entropy(x_0_hat_logits, x_0_ignore, ignore_index=-1, reduction='none').sum(1)
