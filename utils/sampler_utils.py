@@ -22,21 +22,22 @@ def get_sampler(H, embedding_weight, generator):
 
 @torch.no_grad()
 def get_samples(H, generator, sampler):
+    if H.sampler == "absorbing" or H.sampler == "autoregressive":
+        if H.sampler == "absorbing":
+            if H.sample_type == "diffusion":
+                latents = sampler.sample(sample_steps=H.sample_steps, temp=H.temp)
+            else:
+                latents = sampler.sample_mlm(temp=H.temp, sample_steps=H.sample_steps)
 
-    if H.sampler == "absorbing":
-        if H.sample_type == "diffusion":
-            latents = sampler.sample(sample_steps=H.sample_steps, temp=H.temp)
-        else:
-            latents = sampler.sample_mlm(temp=H.temp, sample_steps=H.sample_steps)
-
-    elif H.sampler == "autoregressive":
-        latents = sampler.sample(H.temp)
+        elif H.sampler == "autoregressive":
+            latents = sampler.sample(H.temp)
+            
+        latents_one_hot = latent_ids_to_onehot(latents, H.latent_shape, H.codebook_size)
+        q = sampler.embed(latents_one_hot)
         
     elif H.sampler == "LDA":
-        latents = sampler.sample()
-
-    latents_one_hot = latent_ids_to_onehot(latents, H.latent_shape, H.codebook_size)
-    q = sampler.embed(latents_one_hot)
+        q = sampler.sample()
+        
     images = generator(q.float())
 
     return images

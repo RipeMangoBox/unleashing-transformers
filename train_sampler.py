@@ -67,8 +67,8 @@ def main(H):
 
     embedding_weight = quanitzer_and_generator_state_dict.pop(
         'embedding.weight')
-    if H.deepspeed:
-        embedding_weight = embedding_weight.half()
+    # if H.deepspeed:
+    #     embedding_weight = embedding_weight.half()
     embedding_weight = embedding_weight.cuda(0)
     generator = Generator(H)
 
@@ -231,7 +231,8 @@ def main(H):
         images = None
         if step % H.steps_per_display_output == 0 and step > 0:
             images = get_samples(H, generator, ema_sampler if H.ema else sampler)
-            display_images(vis, images, H, win_name=f'{H.sampler}_samples')
+            # display_images(vis, images, H, win_name=f'{H.sampler}_samples')
+            writer.add_images('samples', images, step)
 
         if step % H.steps_per_save_output == 0 and step > 0:
             if images is None:

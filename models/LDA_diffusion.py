@@ -145,8 +145,12 @@ class LDA_Diffusion(nn.Module):
         super().__init__()
         
         # self.input_dim =       # image channels
+        self.n_samples = H.batch_size
+        self.codebook_size = H.codebook_size
         self.image_size = 256
         self.embed_dim = 256    # embedding dimension
+        self.channel = 256
+        self.latent_shape = [16, 16]
         self.unconditional = True
         
         # dict
@@ -198,17 +202,41 @@ class LDA_Diffusion(nn.Module):
                                         nn_args)
         self.loss_fn = nn.MSELoss()
         
-        self.embedding = embedding_weight
+        self.embedding_weight = embedding_weight
         self.generator = generator
 
-    def get_codebook_entry(self, idx):
-        return self.embedding[idx]
+    def latent_ids_to_onehot(self, latent_ids):
+        min_encoding_indices = latent_ids.view(-1).unsqueeze(1)
+        encodings = torch.zeros(
+            min_encoding_indices.shape[0],
+            self.codebook_size
+        ).to(latent_ids.device)
+        encodings.scatter_(1, min_encoding_indices, 1)
+        one_hot = encodings.view(
+            latent_ids.shape[0],
+            self.latent_shape[0],
+            self.latent_shape[1],
+            self.codebook_size
+        )
+        return one_hot.reshape(one_hot.shape[0], -1, self.codebook_size)
+
+    def embed(self, z):
+        with torch.no_grad():
+            z_flattened = z.view(-1, self.codebook_size)  # B*H*W, codebook_size
+            embedded = torch.matmul(z_flattened, self.embedding_weight).view(
+                z.size(0),
+                self.latent_shape[0],
+                self.latent_shape[1],
+                self.embed_dim
+            ).permute(0, 3, 1, 2).contiguous()
+
+        return embedded
     
     # @torch.compile(mode='max-autotune', fullgraph=True) # useful
     def diffusion(self, zs, t):
-        N, T, C = zs.shape
+        N, C, D = zs.shape
         noise = torch.randn_like(zs)
-        noise_scale = self.noise_level.type_as(noise)[t].unsqueeze(1).unsqueeze(2).repeat(1,T,C)
+        noise_scale = self.noise_level.type_as(noise)[t].unsqueeze(1).unsqueeze(2).repeat(1, C, D)
         noise_scale_sqrt = noise_scale**0.5
         noisy_zs = noise_scale_sqrt * zs + (1.0 - noise_scale)**0.5 * noise
         return noisy_zs, noise
@@ -216,7 +244,10 @@ class LDA_Diffusion(nn.Module):
     # @torch.compile(mode='max-autotune', fullgraph=True) # useful
     def forward(self, batch):
         idx = batch # [b, 256]
-        zs = self.get_codebook_entry(idx) # [b, embed_dim]
+        N, C = idx.shape
+        latents_one_hot = self.latent_ids_to_onehot(idx)
+        zs = self.embed(latents_one_hot).view(N, C, -1) # [b, embed_dim]
+        
         N, C, D = zs.shape
 
         num_noisesteps = self.n_noise_schedule
@@ -242,7 +273,7 @@ class LDA_Diffusion(nn.Module):
         alpha_cum = np.cumprod(alpha)
         T = np.arange(0,len(beta), dtype=np.float32)
 
-        zs = torch.randn(1, 1, self.embed_dim).cuda(0)
+        zs = torch.randn(self.n_samples, np.prod(self.latent_shape), self.embed_dim).cuda(0)
                 
         for n in range(len(alpha) - 1, -1, -1):
             c1 = 1 / alpha[n]**0.5
@@ -257,5 +288,5 @@ class LDA_Diffusion(nn.Module):
                 sigma = ((1.0 - alpha_cum[n-1]) / (1.0 - alpha_cum[n]) * beta[n])**0.5
                 zs += sigma * noise
                 
-        predected_zs_start = zs.cpu().detach().numpy()
-        return predected_zs_start
+        predected_zs_start = zs.detach()
+        return predected_zs_start.reshape(self.n_samples, self.embed_dim, self.latent_shape[0], self.latent_shape[1])
