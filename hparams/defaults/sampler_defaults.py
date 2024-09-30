@@ -66,6 +66,41 @@ class HparamsAutoregressive(HparamsBase):
         else:
             raise KeyError(f"Defaults not defined for BERT model on dataset: {self.dataset}")
 
+class HparamsLDA(HparamsBase):
+    def __init__(self, dataset):
+
+        self.loss_type = "reweighted_elbo"
+        self.sample_type = "diffusion"
+        self.mask_schedule = "random"
+        self.total_steps = 256
+        self.sample_steps = 256
+        self.attn_pdrop = 0.
+        self.embd_pdrop = 0.
+        self.resid_pdrop = 0.
+        self.temp = 1.0
+
+        super().__init__(dataset)
+        if self.dataset == "churches" or self.dataset == "bedrooms":
+            self.batch_size = 20
+            self.n_embd = 512
+            self.n_head = 8
+            self.n_layer = 24
+            self.block_size = 256
+            self.lr = 2e-4
+            self.warmup_iters = 10000
+
+        elif self.dataset == "ffhq":
+            self.batch_size = 5
+            self.n_embd = 512
+            self.n_head = 8
+            self.n_layer = 24
+            self.block_size = 256
+            self.lr = 1e-4
+            self.warmup_iters = 30000
+
+        else:
+            raise KeyError(f"Defaults not defined for multinomial diffusion model on dataset: {self.dataset}")
+
 
 # arguments for all sampler models
 def add_sampler_args(parser):
@@ -85,8 +120,8 @@ def add_sampler_args(parser):
     parser.add_argument("--resid_pdrop", type=float)
     parser.add_argument("--sample_block_size", type=int)
     parser.add_argument("--sample_type", type=str, choices=["diffusion", "mlm"])
-    # parser.add_argument("--sampler", type=str, required=True, choices=["absorbing", "autoregressive"])
-    parser.add_argument("--sampler", type=str, default='absorbing')
+    # parser.add_argument("--sampler", type=str, required=True, choices=["absorbing", "autoregressive", "LDA"])
+    parser.add_argument("--sampler", type=str, default='LDA')
     parser.add_argument("--total_steps", type=int)
     parser.add_argument("--sample_steps", type=int)
     parser.add_argument("--temp", type=float)

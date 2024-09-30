@@ -38,6 +38,9 @@ def generate_latents(H, sampler):
 
         elif H.sampler == "autoregressive":
             latents = sampler.sample(H.temp)
+        
+        elif H.sampler == "LDA":
+            latents = sampler.sample()
 
         all_latents.append(latents.cpu())
 

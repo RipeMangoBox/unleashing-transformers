@@ -3,8 +3,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.transformer.tisa_transformer import TisaTransformer
+from models.transformers.tisa_transformer import TisaTransformer
 from math import sqrt
+import numpy as np
 
 class Conv1dLayer(nn.Module):
   def __init__(self, in_channels, out_channels, kernel_size, padding=0, dilation=1):
@@ -55,7 +56,6 @@ class DiffusionEmbedding(nn.Module):
 class ResidualBlock(nn.Module):
     def __init__(self, residual_channels, 
                 embedding_dim, 
-                l_cond_dim,
                 nn_name,
                 nn_args,
                 index):
@@ -71,19 +71,15 @@ class ResidualBlock(nn.Module):
         else:
             raise ValueError(f"Unknown nn_name: {nn_name}")
             
-        self.l_cond_dim = l_cond_dim
         
         self.diffusion_projection = nn.Linear(embedding_dim, residual_channels)
-        self.local_cond_projection = nn.Linear(l_cond_dim, residual_channels)
         self.output_projection = Conv1dLayer(residual_channels, 2 * residual_channels, 1)
         self.residual_channels = residual_channels
 
-    def forward(self, x, diffusion_step, local_cond):
+    def forward(self, x, diffusion_step):
         diffusion_step = self.diffusion_projection(diffusion_step).unsqueeze(1)
         y = x + diffusion_step # [96, 150, 256], (B, T, C)
 
-        if self.l_cond_dim > 0:
-            y += self.local_cond_projection(local_cond) # local_cond [96, 150, 11], (B, T, C)
         y = self.nn(y).squeeze(-1)
 
         gate, filter = torch.chunk(y, 2, dim=2)
@@ -100,8 +96,6 @@ class LDA(nn.Module):
                 residual_layers,
                 residual_channels,
                 embedding_dim,
-                l_cond_dim,
-                g_cond_dim,
                 n_noise_schedule,
                 nn_name,
                 nn_args):
@@ -112,7 +106,6 @@ class LDA(nn.Module):
         self.residual_layers = nn.ModuleList([
             ResidualBlock(residual_channels,
                 embedding_dim,
-                l_cond_dim + g_cond_dim,
                 nn_name,
                 nn_args,
                 i)
@@ -121,14 +114,10 @@ class LDA(nn.Module):
         self.skip_projection = Conv1dLayer(residual_channels, residual_channels, 1)
         self.output_projection = Conv1dLayer(residual_channels, pose_dim, 1)
         nn.init.zeros_(self.output_projection.conv1d.weight)
-        self.l_cond_dim = l_cond_dim
-        self.g_cond_dim = g_cond_dim
 
-    def forward(self, x, local_cond, global_cond, diffusion_step):
+    def forward(self, x, diffusion_step):
         '''
-        x: noisy poses
-        local_cond: control signals
-        global_cond: global control signals
+        x: noisy zs
         '''
         # input mapping
         x = self.input_projection(x)
@@ -136,16 +125,12 @@ class LDA(nn.Module):
         
         # get diffusion timestamps
         diffusion_step = self.diffusion_embedding(diffusion_step)
-        
-        # cond manipulation
-        if self.g_cond_dim > 0:
-            local_cond=torch.cat((local_cond, global_cond), dim=2)
 
         skip = None
 
         # denoise
         for layer in self.residual_layers:
-            x, skip_connection = layer(x, diffusion_step, local_cond)
+            x, skip_connection = layer(x, diffusion_step)
             skip = skip_connection if skip is None else skip_connection + skip
         if skip is not None:
             x = skip / sqrt(len(self.residual_layers))
@@ -158,14 +143,13 @@ class LDA(nn.Module):
 
 
 class LDA_Diffusion(nn.Module):
-    def __init__(self, model_config):
+    def __init__(self, model_config, generator, quantize):
         super().__init__()
         
         # self.input_dim =       # image channels
         self.image_size = 256
         self.embed_dim = 1024    # embedding dimension
         self.unconditional = True
-        n_timesteps = 150
         
         # dict
         diff_params = {'residual_layers': 20, 
@@ -207,43 +191,70 @@ class LDA_Diffusion(nn.Module):
                    "dilation_cycle": [0,1,2]
                    }
         
-        self.model = LDA(**model_config)
+        self.diffusion_model = LDA(self.embed_dim, 
+                                        diff_params["residual_layers"],
+                                        diff_params["residual_channels"],
+                                        diff_params["embedding_dim"],
+                                        self.n_noise_schedule,
+                                        nn_name,
+                                        nn_args)
         self.loss_fn = nn.MSELoss()
         
-        self._build()
-        
-    def _build(self):
-        
+        self.quantize = quantize
+        self.generator = generator
 
     # @torch.compile(mode='max-autotune', fullgraph=True) # useful
-    def diffusion(self, poses, t):
-        N, T, C = poses.shape
-        noise = torch.randn_like(poses)
+    def diffusion(self, zs, t):
+        N, T, C = zs.shape
+        noise = torch.randn_like(zs)
         noise_scale = self.noise_level.type_as(noise)[t].unsqueeze(1).unsqueeze(2).repeat(1,T,C)
         noise_scale_sqrt = noise_scale**0.5
-        noisy_poses = noise_scale_sqrt * poses + (1.0 - noise_scale)**0.5 * noise
-        return noisy_poses, noise
+        noisy_zs = noise_scale_sqrt * zs + (1.0 - noise_scale)**0.5 * noise
+        return noisy_zs, noise
         
     # @torch.compile(mode='max-autotune', fullgraph=True) # useful
     def forward(self, batch):
-
         idx = batch # [b, 256]
-                
-        N, T, C = idx.shape
+        zs = self.quantize.get_codebook_entry(idx, shape=None) # [b, embed_dim]
+        N, D, C = idx.shape
 
         num_noisesteps = self.n_noise_schedule
-        t = torch.randint(0, num_noisesteps, [N], device=poses.device)
+        t = torch.randint(0, num_noisesteps, [N], device=zs.device)
 
-        # the following four line are deletable
-        # noise = torch.randn_like(poses)
-        # noise_scale = self.noise_level.type_as(noise)[t].unsqueeze(1).unsqueeze(2).repeat(1,T,C)
-        # noise_scale_sqrt = noise_scale**0.5
-        # noisy_poses = noise_scale_sqrt * poses + (1.0 - noise_scale)**0.5 * noise
-
-        noisy_poses, noise = self.diffusion(poses, t)
-        predicted = self.diffusion_model(noisy_poses, ctrl, global_cond, t)
+        noisy_zs, noise = self.diffusion(zs, t)
+        predicted = self.diffusion_model(noisy_zs, t)
 
         loss = self.loss_fn(noise, predicted.squeeze(1))
                 
         return loss
     
+    def train_iter(self, x):
+        loss = self(x)
+        stats = {'loss': loss}
+        return stats
+    
+    def sample(self):
+        noise_sched_0 = self.noise_schedule
+        beta = np.array(noise_sched_0)
+
+        alpha = 1 - beta
+        alpha_cum = np.cumprod(alpha)
+        T = np.arange(0,len(beta), dtype=np.float32)
+
+        zs = torch.randn(self.pose_dim, device=self.device)
+                
+        for n in range(len(alpha) - 1, -1, -1):
+            c1 = 1 / alpha[n]**0.5
+            c2 = beta[n] / (1 - alpha_cum[n])**0.5
+                
+            diff = self.diffusion_model(zs, torch.tensor([T[n]], device=zs.device)).squeeze(1)
+            
+            zs = c1 * (zs - c2 * diff)
+                
+            if n > 0:
+                noise = torch.randn_like(zs)
+                sigma = ((1.0 - alpha_cum[n-1]) / (1.0 - alpha_cum[n]) * beta[n])**0.5
+                zs += sigma * noise
+                
+        predected_zs_start = zs.cpu().detach().numpy()
+        return predected_zs_start
