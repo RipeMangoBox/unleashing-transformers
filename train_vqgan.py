@@ -14,10 +14,14 @@ from utils.log_utils import log, log_stats, save_model, save_stats, save_images,
 from utils.vqgan_utils import load_vqgan_from_checkpoint, calc_FID
 
 torch.backends.cudnn.benchmark = True
+import os
+from torch.utils.tensorboard import SummaryWriter
 
-
-def main(H, vis):
-    vqgan = VQGAN(H).cuda(0)
+def main(H):
+    # 初始化 SummaryWriter
+    writer = SummaryWriter(log_dir=os.path.join('logs', H.log_dir))
+    
+    vqgan = VQGAN(H).cuda(1)
     # only load val_loader if running eval
     train_loader, val_loader = get_data_loaders(
 
@@ -105,7 +109,7 @@ def main(H, vis):
             if random.random() <= 0.5:
                 x = hflip(x)
 
-        x = x.cuda(0)
+        x = x.cuda(1)
 
         if H.amp:
             optim.zero_grad()
@@ -145,12 +149,13 @@ def main(H, vis):
             recon_losses = np.append(recon_losses, stats['l1'])
             losses = np.array([])
 
-            vis.line(
-                mean_losses,
-                list(range(log_start_step, step+1, H.steps_per_log)),
-                win='loss',
-                opts=dict(title='Loss')
-            )
+            # vis.line(
+            #     mean_losses,
+            #     list(range(log_start_step, step+1, H.steps_per_log)),
+            #     win='loss',
+            #     opts=dict(title='Loss')
+            # )
+            
             # vis.line(
             #     recon_losses,
             #     list(range(log_start_step, step+1, H.steps_per_log)),
@@ -158,6 +163,7 @@ def main(H, vis):
             #     opts=dict(title='Train L1 Loss')
             # )
             log_stats(step, stats)
+            writer.add_scalar('Loss', mean_loss, step)
 
         # bundled validation loss and FID calculations together
         # NOTE put in seperate function?
@@ -181,7 +187,8 @@ def main(H, vis):
 
                 steps = [step for step in range(eval_start_step, step+1, H.steps_per_eval)]
                 # vis.line(fids, steps, win='FID',opts=dict(title='FID'))
-                vis.line(val_losses, steps, win='val', opts=dict(title='Validation L1 Loss'))
+                # vis.line(val_losses, steps, win='val', opts=dict(title='Validation L1 Loss'))
+                writer.add_scalar('val_losses', val_losses, step)
 
                 # vqgan.train()
 
@@ -196,11 +203,13 @@ def main(H, vis):
             ema.update_model_average(ema_vqgan, vqgan)
 
         if step % H.steps_per_display_output == 0 and step > 0:
-            display_images(vis, x, H, 'Original Images')
+            # display_images(vis, x, H, 'Original Images')
             # if H.ema:
             #     x_hat, _ = ema_vqgan.train_iter(x, step)
             x_hat = x_hat.detach().cpu().to(torch.float32)
-            display_images(vis, x_hat, H, 'VQGAN Recons')
+            # display_images(vis, x_hat, H, 'VQGAN Recons')
+            writer.add_image('Original Images', x, step)
+            writer.add_image('VQGAN Recons', x_hat, step)
 
         if step % H.steps_per_save_output == 0:
             save_images(x_hat, 'recons', step, H.log_dir, H.save_individually)
@@ -228,9 +237,9 @@ def main(H, vis):
 
 if __name__ == '__main__':
     H = get_vqgan_hparams()
-    vis = set_up_visdom(H)
+    # vis = set_up_visdom(H)
     config_log(H.log_dir)
     log('---------------------------------')
     log(f'Setting up training for VQGAN on {H.dataset}')
     start_training_log(H)
-    main(H, vis)
+    main(H)

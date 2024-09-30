@@ -20,22 +20,22 @@ def main(H, vis):
     )
     embedding_weight = quanitzer_and_generator_state_dict.pop(
         "embedding.weight")
-    embedding_weight = embedding_weight.cuda(0)
+    embedding_weight = embedding_weight.cuda(1)
     generator = Generator(H)
 
     data_loader, _ = get_data_loaders(
         H.dataset, H.img_size, H.batch_size, shuffle=False)
 
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
-    generator = generator.cuda(0)
-    sampler = get_sampler(H, embedding_weight).cuda(0)
+    generator = generator.cuda(1)
+    sampler = get_sampler(H, embedding_weight).cuda(1)
     sampler = load_model(
-        sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(0)
+        sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(1)
 
     samples = get_samples(H, generator, sampler)
     sampler = None
 
-    distance_fn = lpips.LPIPS(net="alex").cuda(0)
+    distance_fn = lpips.LPIPS(net="alex").cuda(1)
     nearest_images = torch.zeros_like(samples).cpu()
 
     k_nearest = 10
@@ -44,7 +44,7 @@ def main(H, vis):
 
     log(f"Num batches: {len(data_loader)}")
     for batch_num, image_batch in tqdm(enumerate(iter(data_loader)), total=len(data_loader)):
-        image_batch = image_batch[0].cuda(0)
+        image_batch = image_batch[0].cuda(1)
         for idx, sample in enumerate(samples):
             for image in image_batch:
                 distance = distance_fn(sample, image).item()

@@ -307,7 +307,7 @@ class Generator(nn.Module):
                             nn.Conv2d(block_in_ch, block_in_ch, kernel_size=3, stride=1, padding=1),
                             nn.ReLU(),
                             nn.Conv2d(block_in_ch, H.n_channels, kernel_size=1, stride=1, padding=0)
-                        ).cuda(0)
+                        ).cuda(1)
 
     def forward(self, x):
         for block in self.blocks:
@@ -361,7 +361,7 @@ class VQAutoEncoder(nn.Module):
         self.generator = Generator(H)
 
     def forward(self, x):
-        x = self.encoder(x)
+        x = self.encoder(x) # [b, c=3, img_size=256, img_size] -> [b, emb_dim=256, 16, 16]
         quant, codebook_loss, quant_stats = self.quantize(x)
         x = self.generator(quant)
         return x, codebook_loss, quant_stats

@@ -79,8 +79,8 @@ class Block(nn.Module):
 
     def forward(self, x, layer_past=None, return_present=False):
 
-        # attn, present = self.attn(self.ln1(x), layer_past)
-        # x = x + attn
+        attn, present = self.attn(self.ln1(x), layer_past)
+        x = x + attn
         x = x + self.mlp(self.ln2(x))
 
         # if layer_past is not None or return_present:

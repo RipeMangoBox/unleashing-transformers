@@ -21,7 +21,7 @@ class AbsorbingDiffusion(Sampler):
         self.n_samples = H.batch_size
         self.loss_type = H.loss_type
         self.mask_schedule = H.mask_schedule
-        self.mask_type = 'linear' if 'linear' in H.log_dir else 'bernoulli'
+        self.mask_type = 'linear'
         self.aux_weight = aux_weight
         self.register_buffer('Lt_history', torch.zeros(self.num_timesteps+1))
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps+1))
@@ -147,7 +147,7 @@ class AbsorbingDiffusion(Sampler):
 
     def sample(self, temp=1.0, sample_steps=None):
         b = self.n_samples
-        device_example = torch.tensor([0]).cuda(0) # for device change convience
+        device_example = torch.tensor([0]).cuda(1) # for device change convience
         device = device_example.device
         
         x_t = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id
@@ -165,7 +165,7 @@ class AbsorbingDiffusion(Sampler):
             # update mask with changes
             unmasked = torch.bitwise_or(unmasked, changes) # 对需要解除且还未解除的位置进行解除mask
 
-            x_0_logits = self._denoise_fn(x_t, t=t)
+            x_0_logits = self._denoise_fn(x_t, time_embeddings=self.time_emb(t))
             # scale by temperature
             x_0_logits = x_0_logits / temp
             x_0_dist = dists.Categorical(

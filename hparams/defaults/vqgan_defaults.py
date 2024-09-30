@@ -31,7 +31,7 @@ class HparamsVQGAN(HparamsBase):
 
         elif self.dataset == 'ffhq':
             self.attn_resolutions = [16]
-            self.batch_size = 3
+            self.batch_size = 7
             self.ch_mult = [1, 1, 2, 2, 4]
             self.codebook_size = 1024
             self.disc_layers = 3

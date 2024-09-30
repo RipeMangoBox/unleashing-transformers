@@ -18,10 +18,13 @@ import subprocess
 import threading
 from visdom.server import start_server
 import atexit
+from torch.utils.tensorboard import SummaryWriter
 # torch.backends.cudnn.benchmark = True
 
 
-def main(H, vis):
+def main(H):
+    # 初始化 SummaryWriter
+    writer = SummaryWriter(log_dir=os.path.join('logs', H.log_dir))
 
     latents_fp_suffix = '_flipped' if H.horizontal_flip else ''
     latents_filepath = f'latents/{H.dataset}_{H.latent_shape[-1]}_train_latents{latents_fp_suffix}'
@@ -48,7 +51,7 @@ def main(H, vis):
         )
 
         log("Transferring autoencoder to GPU to generate latents...")
-        ae = ae.cuda(0)  # put ae on GPU for generating
+        ae = ae.cuda(1)  # put ae on GPU for generating
         generate_latent_ids(H, ae, train_loader, val_loader)
         log("Deleting autoencoder to conserve GPU memory...")
         ae = ae.cpu()
@@ -66,12 +69,12 @@ def main(H, vis):
         'embedding.weight')
     if H.deepspeed:
         embedding_weight = embedding_weight.half()
-    embedding_weight = embedding_weight.cuda(0)
+    embedding_weight = embedding_weight.cuda(1)
     generator = Generator(H)
 
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
-    generator = generator.cuda(0)
-    sampler = get_sampler(H, embedding_weight).cuda(0)
+    generator = generator.cuda(1)
+    sampler = get_sampler(H, embedding_weight).cuda(1)
 
     optim = torch.optim.Adam(sampler.parameters(), lr=H.lr)
 
@@ -90,7 +93,7 @@ def main(H, vis):
     if H.load_step > 0:
         start_step = H.load_step + 1
 
-        sampler = load_model(sampler, H.sampler, H.load_step, H.load_dir).cuda(0)
+        sampler = load_model(sampler, H.sampler, H.load_step, H.load_dir).cuda(1)
         if H.ema:
             # if EMA has not been generated previously, recopy newly loaded model
             try:
@@ -128,24 +131,24 @@ def main(H, vis):
             elbo = elbo[0]
 
             # initialise plots
-            vis.line(
-                mean_losses,
-                list(range(log_start_step, start_step, H.steps_per_log)),
-                win='loss',
-                opts=dict(title='Loss')
-            )
-            vis.line(
-                elbo,
-                list(range(log_start_step, start_step, H.steps_per_log)),
-                win='ELBO',
-                opts=dict(title='ELBO')
-            )
-            vis.line(
-                val_losses,
-                list(range(H.steps_per_eval, start_step, H.steps_per_eval)),
-                win='Val_loss',
-                opts=dict(title='Validation Loss')
-            )
+            # vis.line(
+            #     mean_losses,
+            #     list(range(log_start_step, start_step, H.steps_per_log)),
+            #     win='loss',
+            #     opts=dict(title='Loss')
+            # )
+            # vis.line(
+            #     elbo,
+            #     list(range(log_start_step, start_step, H.steps_per_log)),
+            #     win='ELBO',
+            #     opts=dict(title='ELBO')
+            # )
+            # vis.line(
+            #     val_losses,
+            #     list(range(H.steps_per_eval, start_step, H.steps_per_eval)),
+            #     win='Val_loss',
+            #     opts=dict(title='Validation Loss')
+            # )
         else:
             log('No stats file found for loaded model, displaying stats from load step only.')
             log_start_step = start_step
@@ -164,7 +167,7 @@ def main(H, vis):
                 optim_warmup(H, step, optim)
 
         x = next(train_iterator)
-        x = x.cuda(0)
+        x = x.cuda(1)
 
         if H.amp:
             optim.zero_grad()
@@ -194,30 +197,33 @@ def main(H, vis):
             mean_losses = np.append(mean_losses, mean_loss)
             losses = np.array([])
 
-            vis.line(
-                np.array([mean_loss]),
-                np.array([step]),
-                win='loss',
-                update=('append' if step > 0 else 'replace'),
-                opts=dict(title='Loss')
-            )
+            # vis.line(
+            #     np.array([mean_loss]),
+            #     np.array([step]),
+            #     win='loss',
+            #     update=('append' if step > 0 else 'replace'),
+            #     opts=dict(title='Loss')
+            # )
             log_stats(step, stats)
+            
+            writer.add_scalar('training loss', mean_loss, step)
 
             if H.sampler == 'absorbing':
                 elbo = np.append(elbo, stats['vb_loss'].item())
-                vis.bar(
-                    sampler.loss_history,
-                    list(range(sampler.loss_history.size(0))),
-                    win='loss_bar',
-                    opts=dict(title='loss_bar')
-                )
-                vis.line(
-                    np.array([stats['vb_loss'].item()]),
-                    np.array([step]),
-                    win='ELBO',
-                    update=('append' if step > 0 else 'replace'),
-                    opts=dict(title='ELBO')
-                )
+                # vis.bar(
+                #     sampler.loss_history,
+                #     list(range(sampler.loss_history.size(0))),
+                #     win='loss_bar',
+                #     opts=dict(title='loss_bar')
+                # )
+                # vis.line(
+                #     np.array([stats['vb_loss'].item()]),
+                #     np.array([step]),
+                #     win='ELBO',
+                #     update=('append' if step > 0 else 'replace'),
+                #     opts=dict(title='ELBO')
+                # )
+                writer.add_scalar('ELBO', stats['vb_loss'].item(), step)
 
         if H.ema and step % H.steps_per_update_ema == 0 and step > 0:
             ema.update_model_average(ema_sampler, sampler)
@@ -240,7 +246,7 @@ def main(H, vis):
             for _ in tqdm(range(eval_repeats)):
                 for x in val_latent_loader:
                     with torch.no_grad():
-                        stats = sampler.train_iter(x.cuda(0))
+                        stats = sampler.train_iter(x.cuda(1))
                         valid_loss += stats['loss'].item()
                         if H.sampler == 'absorbing':
                             valid_elbo += stats['vb_loss'].item()
@@ -251,21 +257,21 @@ def main(H, vis):
 
             val_losses = np.append(val_losses, valid_loss)
             val_elbos = np.append(val_elbos, valid_elbo)
-            vis.line(
-                np.array([valid_loss]),
-                np.array([step]),
-                win='Val_loss',
-                update=('append' if step > 0 else 'replace'),
-                opts=dict(title='Validation Loss')
-            )
-            if H.sampler == 'absorbing':
-                vis.line(
-                    np.array([valid_elbo]),
-                    np.array([step]),
-                    win='Val_elbo',
-                    update=('append' if step > 0 else 'replace'),
-                    opts=dict(title='Validation ELBO')
-                )
+            # vis.line(
+            #     np.array([valid_loss]),
+            #     np.array([step]),
+            #     win='Val_loss',
+            #     update=('append' if step > 0 else 'replace'),
+            #     opts=dict(title='Validation Loss')
+            # )
+            # if H.sampler == 'absorbing':
+            #     vis.line(
+            #         np.array([valid_elbo]),
+            #         np.array([step]),
+            #         win='Val_elbo',
+            #         update=('append' if step > 0 else 'replace'),
+            #         opts=dict(title='Validation ELBO')
+            #     )
 
         if step % H.steps_per_checkpoint == 0 and step > H.load_step:
             save_model(sampler, H.sampler, step, H.log_dir)
@@ -300,15 +306,15 @@ if __name__ == '__main__':
     H = get_sampler_hparams()
     log('---------------------------------')
     # 创建线程来启动 Visdom 服务器
-    visdom_thread = threading.Thread(target=start_visdom_server)
-    visdom_thread.start()
+    # visdom_thread = threading.Thread(target=start_visdom_server)
+    # visdom_thread.start()
     
     vis = set_up_visdom(H)
     config_log(H.log_dir)
     log('---------------------------------')
     log(f'Setting up training for {H.sampler}')
     start_training_log(H)
-    main(H, vis)
+    main(H)
 # python3 train_sampler.py --sampler absorbing --dataset ffhq --log_dir absorbing_ffhq --ae_load_path vqgan_ffhq --amp --ema
-
+# python3 train_sampler.py --visdom_port 9501
 # python -m visdom.server -p 10001 -env_path=logs/absorbing_ffhq_linear_mask

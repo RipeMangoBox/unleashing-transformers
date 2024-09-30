@@ -52,7 +52,7 @@ class TensorDataset(torch.utils.data.Dataset):
 
 # TODO: replace this with general checkpointing method
 def load_vqgan_from_checkpoint(H, vqgan, optim, disc_optim, ema_vqgan):
-    vqgan = load_model(vqgan, "vqgan", H.load_step, H.load_dir).cuda(0)
+    vqgan = load_model(vqgan, "vqgan", H.load_step, H.load_dir).cuda(1)
     if H.load_optim:
         optim = load_model(optim, "ae_optim", H.load_step, H.load_dir)
         disc_optim = load_model(disc_optim, "disc_optim", H.load_step, H.load_dir)
@@ -106,6 +106,6 @@ def generate_recons(H, model):
     log("Generating recons for FID calculation")
 
     for idx, x in tqdm(enumerate(iter(data_loader))):
-        x = x[0].cuda(0)  # TODO check this for multiple datasets
+        x = x[0].cuda(1)  # TODO check this for multiple datasets
         x_hat, *_ = model.ae(x)
         save_images(x_hat, "recon", idx, f"{H.log_dir}/FID_recons", save_individually=True)
