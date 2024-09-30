@@ -1,5 +1,3 @@
-# Copyright 2023 Motorica AB, Inc. All Rights Reserved.
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -143,12 +141,12 @@ class LDA(nn.Module):
 
 
 class LDA_Diffusion(nn.Module):
-    def __init__(self, model_config, generator, quantize):
+    def __init__(self, H, embedding_weight, generator):
         super().__init__()
         
         # self.input_dim =       # image channels
         self.image_size = 256
-        self.embed_dim = 1024    # embedding dimension
+        self.embed_dim = 256    # embedding dimension
         self.unconditional = True
         
         # dict
@@ -200,9 +198,12 @@ class LDA_Diffusion(nn.Module):
                                         nn_args)
         self.loss_fn = nn.MSELoss()
         
-        self.quantize = quantize
+        self.embedding = embedding_weight
         self.generator = generator
 
+    def get_codebook_entry(self, idx):
+        return self.embedding[idx]
+    
     # @torch.compile(mode='max-autotune', fullgraph=True) # useful
     def diffusion(self, zs, t):
         N, T, C = zs.shape
@@ -215,8 +216,8 @@ class LDA_Diffusion(nn.Module):
     # @torch.compile(mode='max-autotune', fullgraph=True) # useful
     def forward(self, batch):
         idx = batch # [b, 256]
-        zs = self.quantize.get_codebook_entry(idx, shape=None) # [b, embed_dim]
-        N, D, C = idx.shape
+        zs = self.get_codebook_entry(idx) # [b, embed_dim]
+        N, C, D = zs.shape
 
         num_noisesteps = self.n_noise_schedule
         t = torch.randint(0, num_noisesteps, [N], device=zs.device)
@@ -241,7 +242,7 @@ class LDA_Diffusion(nn.Module):
         alpha_cum = np.cumprod(alpha)
         T = np.arange(0,len(beta), dtype=np.float32)
 
-        zs = torch.randn(self.pose_dim, device=self.device)
+        zs = torch.randn(1, 1, self.embed_dim).cuda(0)
                 
         for n in range(len(alpha) - 1, -1, -1):
             c1 = 1 / alpha[n]**0.5

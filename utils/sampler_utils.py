@@ -2,19 +2,21 @@ import os
 import torch
 from tqdm import tqdm
 from .log_utils import save_latents, log
-from models import Transformer, AbsorbingDiffusion, AutoregressiveTransformer
+from models import Transformer, AbsorbingDiffusion, AutoregressiveTransformer, LDA_Diffusion
 
 
-def get_sampler(H, embedding_weight):
-
+def get_sampler(H, embedding_weight, generator):
     if H.sampler == 'absorbing':
-        denoise_fn = Transformer(H).cuda(1)
+        denoise_fn = Transformer(H).cuda(0)
         sampler = AbsorbingDiffusion(
             H, denoise_fn, H.codebook_size, embedding_weight)
 
     elif H.sampler == 'autoregressive':
         sampler = AutoregressiveTransformer(H, embedding_weight)
 
+    elif H.sampler == 'LDA':
+        sampler = LDA_Diffusion(H, embedding_weight, generator)
+        
     return sampler
 
 
@@ -29,6 +31,9 @@ def get_samples(H, generator, sampler):
 
     elif H.sampler == "autoregressive":
         latents = sampler.sample(H.temp)
+        
+    elif H.sampler == "LDA":
+        latents = sampler.sample()
 
     latents_one_hot = latent_ids_to_onehot(latents, H.latent_shape, H.codebook_size)
     q = sampler.embed(latents_one_hot)
@@ -67,7 +72,7 @@ def generate_latent_ids(H, ae, train_loader, val_loader=None):
 def generate_latents_from_loader(H, autoencoder, dataloader):
     latent_ids = []
     for x, _ in tqdm(dataloader):
-        x = x.cuda(1)
+        x = x.cuda(0)
         latents = autoencoder.encoder(x)  # B, emb_dim, H, W
 
         latents = latents.permute(0, 2, 3, 1).contiguous()  # B, H, W, emb_dim

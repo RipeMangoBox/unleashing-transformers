@@ -22,10 +22,10 @@ def add_training_args(parser):
 
 # args required for logging
 def add_logging_args(parser):
-    parser.add_argument("--log_dir", type=str, default="TimeEmbedding/attn")
+    parser.add_argument("--log_dir", type=str, default="LDA")
     parser.add_argument("--save_individually", const=True, action="store_const", default=False)
-    parser.add_argument("--steps_per_checkpoint", type=int, default=25000)
-    parser.add_argument("--steps_per_display_output", type=int, default=5000)
+    parser.add_argument("--steps_per_checkpoint", type=int, default=40)
+    parser.add_argument("--steps_per_display_output", type=int, default=20)
     parser.add_argument("--steps_per_eval", type=int, default=0)
     parser.add_argument("--steps_per_log", type=int, default=10)
     parser.add_argument("--steps_per_save_output", type=int, default=5000)
