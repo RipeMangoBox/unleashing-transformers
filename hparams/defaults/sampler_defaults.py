@@ -25,7 +25,7 @@ class HparamsAbsorbing(HparamsBase):
             self.warmup_iters = 10000
 
         elif self.dataset == "ffhq":
-            self.batch_size = 20
+            self.batch_size = 5
             self.n_embd = 512
             self.n_head = 8
             self.n_layer = 24
