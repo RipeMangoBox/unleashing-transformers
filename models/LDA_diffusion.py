@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.transformers.tisa_transformer import TisaTransformer
+from models.LDA_transformers.tisa_transformer import TisaTransformer
 from math import sqrt
 import numpy as np
 
@@ -141,7 +141,7 @@ class LDA(nn.Module):
 
 
 class LDA_Diffusion(nn.Module):
-    def __init__(self, H, embedding_weight, generator):
+    def __init__(self, H, embedding_weight):
         super().__init__()
         
         # self.input_dim =       # image channels
@@ -203,7 +203,6 @@ class LDA_Diffusion(nn.Module):
         self.loss_fn = nn.MSELoss()
         
         self.embedding_weight = embedding_weight
-        self.generator = generator
 
     def latent_ids_to_onehot(self, latent_ids):
         min_encoding_indices = latent_ids.view(-1).unsqueeze(1)
@@ -287,6 +286,8 @@ class LDA_Diffusion(nn.Module):
                 noise = torch.randn_like(zs)
                 sigma = ((1.0 - alpha_cum[n-1]) / (1.0 - alpha_cum[n]) * beta[n])**0.5
                 zs += sigma * noise
+                
+                debug = True
                 
         predected_zs_start = zs.detach()
         return predected_zs_start.reshape(self.n_samples, self.embed_dim, self.latent_shape[0], self.latent_shape[1])

@@ -2,10 +2,10 @@ import os
 import torch
 from tqdm import tqdm
 from .log_utils import save_latents, log
-from models import Transformer, AbsorbingDiffusion, AutoregressiveTransformer, LDA_Diffusion
+from models import Transformer, AbsorbingDiffusion, AutoregressiveTransformer, LDA_Diffusion, InterDiffusion
 
 
-def get_sampler(H, embedding_weight, generator):
+def get_sampler(H, embedding_weight):
     if H.sampler == 'absorbing':
         denoise_fn = Transformer(H).cuda(0)
         sampler = AbsorbingDiffusion(
@@ -15,7 +15,10 @@ def get_sampler(H, embedding_weight, generator):
         sampler = AutoregressiveTransformer(H, embedding_weight)
 
     elif H.sampler == 'LDA':
-        sampler = LDA_Diffusion(H, embedding_weight, generator)
+        sampler = LDA_Diffusion(H, embedding_weight)
+    
+    elif H.sampler == 'intergen':
+        sampler = InterDiffusion(H, embedding_weight)
         
     return sampler
 
@@ -35,7 +38,7 @@ def get_samples(H, generator, sampler):
         latents_one_hot = latent_ids_to_onehot(latents, H.latent_shape, H.codebook_size)
         q = sampler.embed(latents_one_hot)
         
-    elif H.sampler == "LDA":
+    elif H.sampler == "LDA" or H.sampler == "intergen":
         q = sampler.sample()
         
     images = generator(q.float())

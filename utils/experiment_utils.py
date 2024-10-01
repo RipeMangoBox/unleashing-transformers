@@ -39,9 +39,9 @@ def generate_latents(H, sampler):
         elif H.sampler == "autoregressive":
             latents = sampler.sample(H.temp)
         
-        elif H.sampler == "LDA":
+        elif H.sampler == "LDA" or H.sampler == "intergen":
             latents = sampler.sample()
-
+            
         all_latents.append(latents.cpu())
 
     # all_latents = [torch.load(f"logs/{image_dir}/latents_backup_{i}.pkl") for i in range(10)]

@@ -1,5 +1,5 @@
 import argparse
-from .defaults.sampler_defaults import HparamsAbsorbing, HparamsAutoregressive, HparamsLDA, add_sampler_args
+from .defaults.sampler_defaults import HparamsAbsorbing, HparamsAutoregressive, HparamsLDA, HparamsIntergen, add_sampler_args
 from .defaults.vqgan_defaults import HparamsVQGAN, add_vqgan_args
 from .defaults.experiment_defaults import add_PRDC_args, add_sampler_FID_args, add_big_sample_args
 
@@ -76,6 +76,9 @@ def get_sampler_H_from_parser(parser):
         H_sampler = HparamsAutoregressive(dataset)
     elif parser_args.sampler == "LDA":
         H_sampler = HparamsLDA(dataset)
+    elif parser_args.sampler == "intergen":
+        H_sampler = HparamsIntergen(dataset)
+        
     H.update(H_sampler)  # overwrites old (vqgan) H.batch_size
     H = apply_parser_values_to_H(H, parser_args)
     return H

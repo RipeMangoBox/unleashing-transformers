@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.transformers.tisa_v2 import TisaV2
+from models.LDA_transformers.tisa_v2 import TisaV2
 
 class TisaTransformer(nn.Module):
 

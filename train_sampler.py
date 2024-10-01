@@ -74,7 +74,7 @@ def main(H):
 
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
     generator = generator.cuda(0)
-    sampler = get_sampler(H, embedding_weight, generator).cuda(0)
+    sampler = get_sampler(H, embedding_weight).cuda(0)
 
     optim = torch.optim.Adam(sampler.parameters(), lr=H.lr)
 
