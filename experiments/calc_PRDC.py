@@ -18,7 +18,7 @@ def spatial_average(in_tens, keepdim=True):
 class Distance:
     def __init__(self):
         super().__init__()
-        self.feat_extractor = create_feature_extractor('inception-v3-compat', ['2048']).cuda(1)
+        self.feat_extractor = create_feature_extractor('inception-v3-compat', ['2048']).cuda(0)
         self.distance_metric = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
 
     def extract_feats(self, in0):
@@ -33,7 +33,7 @@ def get_feats_from_loader(data_loader):
     distance_fn = Distance()
     features = []
     for batch in tqdm(data_loader):
-        batch = batch.cuda(1)
+        batch = batch.cuda(0)
         feats = distance_fn.extract_feats(batch)
         features.append(feats.cpu())
 

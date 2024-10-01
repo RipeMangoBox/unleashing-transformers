@@ -147,7 +147,7 @@ class AbsorbingDiffusion(Sampler):
 
     def sample(self, temp=1.0, sample_steps=None):
         b = self.n_samples
-        device_example = torch.tensor([0]).cuda(1) # for device change convience
+        device_example = torch.tensor([0]).cuda(0) # for device change convience
         device = device_example.device
         
         x_t = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id

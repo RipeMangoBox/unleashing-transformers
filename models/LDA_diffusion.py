@@ -272,7 +272,7 @@ class LDA_Diffusion(nn.Module):
         alpha_cum = np.cumprod(alpha)
         T = np.arange(0,len(beta), dtype=np.float32)
 
-        zs = torch.randn(self.n_samples, np.prod(self.latent_shape), self.embed_dim).cuda(1)
+        zs = torch.randn(self.n_samples, np.prod(self.latent_shape), self.embed_dim).cuda(0)
                 
         for n in range(len(alpha) - 1, -1, -1):
             c1 = 1 / alpha[n]**0.5
