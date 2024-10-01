@@ -20,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 
 
 def main(H, vis):
-    vqgan = VQGAN(H).cuda(0)
+    vqgan = VQGAN(H).cuda(1)
 
     train_loader, val_loader = get_data_loaders(
         H.dataset,
@@ -39,11 +39,11 @@ def main(H, vis):
     )
     embedding_weight = quanitzer_and_generator_state_dict.pop(
         "embedding.weight")
-    embedding_weight = embedding_weight.cuda(0)
+    embedding_weight = embedding_weight.cuda(1)
 
     sampler = get_sampler(H, embedding_weight)
     sampler = load_model(
-        sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(0)
+        sampler, f"{H.sampler}_ema", H.load_step, H.load_dir).cuda(1)
 
     sampler = sampler.eval()
     sampler.num_timesteps = 256
@@ -64,7 +64,7 @@ def main(H, vis):
         else:
             x = batch
 
-        x = x.cuda(0)
+        x = x.cuda(1)
 
         optim.zero_grad()
         if H.amp:
@@ -100,13 +100,13 @@ def main(H, vis):
             log_stats(step, stats)
 
         if step % H.steps_per_eval == 0 and step > 0:
-            sampler = sampler.cuda(0)
+            sampler = sampler.cuda(1)
             with torch.no_grad():
                 bpds = []
                 for x_val in tqdm(val_loader, total=len(val_loader)):
                     if isinstance(x_val, list):
                         x_val = x_val[0]
-                    x_val = x_val.cuda(0)
+                    x_val = x_val.cuda(1)
 
                     _, stats = vqgan.probabilistic(x_val)
                     nl_p_x_z = stats["nll_raw"]

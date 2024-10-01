@@ -51,7 +51,7 @@ def main(H):
         )
 
         log("Transferring autoencoder to GPU to generate latents...")
-        ae = ae.cuda(0)  # put ae on GPU for generating
+        ae = ae.cuda(1)  # put ae on GPU for generating
         generate_latent_ids(H, ae, train_loader, val_loader)
         log("Deleting autoencoder to conserve GPU memory...")
         ae = ae.cpu()
@@ -69,12 +69,12 @@ def main(H):
         'embedding.weight')
     # if H.deepspeed:
     #     embedding_weight = embedding_weight.half()
-    embedding_weight = embedding_weight.cuda(0)
+    embedding_weight = embedding_weight.cuda(1)
     generator = Generator(H)
 
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
-    generator = generator.cuda(0)
-    sampler = get_sampler(H, embedding_weight).cuda(0)
+    generator = generator.cuda(1)
+    sampler = get_sampler(H, embedding_weight).cuda(1)
 
     optim = torch.optim.Adam(sampler.parameters(), lr=H.lr)
 
@@ -93,7 +93,7 @@ def main(H):
     if H.load_step > 0:
         start_step = H.load_step + 1
 
-        sampler = load_model(sampler, H.sampler, H.load_step, H.load_dir).cuda(0)
+        sampler = load_model(sampler, H.sampler, H.load_step, H.load_dir).cuda(1)
         if H.ema:
             # if EMA has not been generated previously, recopy newly loaded model
             try:
@@ -167,7 +167,7 @@ def main(H):
                 optim_warmup(H, step, optim)
 
         x = next(train_iterator)
-        x = x.cuda(0)
+        x = x.cuda(1)
 
         if H.amp:
             optim.zero_grad()
@@ -247,7 +247,7 @@ def main(H):
             for _ in tqdm(range(eval_repeats)):
                 for x in val_latent_loader:
                     with torch.no_grad():
-                        stats = sampler.train_iter(x.cuda(0))
+                        stats = sampler.train_iter(x.cuda(1))
                         valid_loss += stats['loss'].item()
                         if H.sampler == 'absorbing':
                             valid_elbo += stats['vb_loss'].item()

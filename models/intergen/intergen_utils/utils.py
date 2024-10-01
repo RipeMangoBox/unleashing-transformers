@@ -94,8 +94,8 @@ class MotionNormalizer():
         mean = torch.load("./latents/global_mean.pt")
         std = torch.load("./latents/global_std.pt")
 
-        self.motion_mean = mean
-        self.motion_std = std
+        self.motion_mean = mean.cuda(1)
+        self.motion_std = std.cuda(1)
 
     def forward(self, x):
         x = (x - self.motion_mean) / self.motion_std

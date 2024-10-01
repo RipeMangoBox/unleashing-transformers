@@ -213,7 +213,7 @@ class InterDiffusion(nn.Module):
         return zs_hat_0.reshape(B, C, self.latent_shape[0], self.latent_shape[1])
     
     def random_continuous_sample(self):
-        zs_t = torch.randn(self.n_samples, np.prod(self.latent_shape), self.embed_dim).cuda(0)
+        zs_t = torch.randn(self.n_samples, np.prod(self.latent_shape), self.embed_dim).cuda(1)
         B, C, _ = zs_t.shape
         zs_hat_0 = self(zs_t)['output']
         zs_hat_0 = self.normalizer.backward(zs_hat_0.detach())
@@ -224,4 +224,4 @@ class InterDiffusion(nn.Module):
         continuous_sample = self.random_continuous_sample()
         
         # return torch.cat([discrete_sample, continuous_sample], dim=-1)
-        return discrete_sample
+        return continuous_sample

@@ -21,7 +21,7 @@ def main(H):
     # 初始化 SummaryWriter
     writer = SummaryWriter(log_dir=os.path.join('logs', H.log_dir))
     
-    vqgan = VQGAN(H).cuda(0)
+    vqgan = VQGAN(H).cuda(1)
     # only load val_loader if running eval
     train_loader, val_loader = get_data_loaders(
 
@@ -109,7 +109,7 @@ def main(H):
             if random.random() <= 0.5:
                 x = hflip(x)
 
-        x = x.cuda(0)
+        x = x.cuda(1)
 
         if H.amp:
             optim.zero_grad()

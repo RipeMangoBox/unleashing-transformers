@@ -17,12 +17,12 @@ def main(H, vis):
         'embedding.weight')
     if H.deepspeed:
         embedding_weight = embedding_weight.half()
-    embedding_weight = embedding_weight.cuda(0)
+    embedding_weight = embedding_weight.cuda(1)
     generator = Generator(H)
 
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
-    generator = generator.cuda(0)
-    sampler = get_sampler(H, embedding_weight).cuda(0)
+    generator = generator.cuda(1)
+    sampler = get_sampler(H, embedding_weight).cuda(1)
 
     sampler = load_model(sampler, f'{H.sampler}_ema', H.load_step, H.load_dir)
     sampler.n_samples = 25  # get samples in 5x5 grid

@@ -36,7 +36,7 @@ def load(H):
         )
 
         print("Transferring autoencoder to GPU to generate latents...")
-        ae = ae.cuda(0)  # put ae on GPU for generating
+        ae = ae.cuda(1)  # put ae on GPU for generating
         generate_latent_ids(H, ae, train_loader, val_loader)
         print("Deleting autoencoder to conserve GPU memory...")
         ae = ae.cpu()
@@ -54,13 +54,13 @@ def load(H):
         'embedding.weight')
     # if H.deepspeed:
     #     embedding_weight = embedding_weight.half()
-    embedding_weight = embedding_weight.cuda(0)
+    embedding_weight = embedding_weight.cuda(1)
     generator = Generator(H)
 
     generator.load_state_dict(quanitzer_and_generator_state_dict, strict=False)
-    generator = generator.cuda(0)
-    sampler = get_sampler(H, embedding_weight).cuda(0)
-    # sampler = load_model(sampler, H.sampler, H.load_step, H.load_dir).cuda(0) # inference
+    generator = generator.cuda(1)
+    sampler = get_sampler(H, embedding_weight).cuda(1)
+    # sampler = load_model(sampler, H.sampler, H.load_step, H.load_dir).cuda(1) # inference
     
     train_iterator = cycle(train_latent_loader)
     # val_iterator = cycle(val_latent_loader)
@@ -76,7 +76,7 @@ def load(H):
     train_dataset = []
     for step in range(start_step, 473):
         x = next(train_iterator)
-        x = x.cuda(0)
+        x = x.cuda(1)
         print(f"step: {step}")
         train_dataset.append(x)
     
